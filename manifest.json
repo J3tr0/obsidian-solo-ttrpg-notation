@@ -1,0 +1,9 @@
+{
+  "id": "solo-ttrpg-notation",
+  "name": "Solo TTRPG Notation",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Syntax highlighting for Solo TTRPG Notation (by Roberto Bisceglie)",
+  "author": "Fabio Giannace",
+  "isDesktopOnly": false
+}
