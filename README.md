@@ -68,6 +68,10 @@ No build step required. Copy `main.js`, `styles.css`, and `manifest.json` into y
 
 Then enable the plugin in Obsidian → Settings → Community plugins.
 
-## Based on
+## Attribution
 
-**Solo TTRPG Notation v2.0** by Roberto Bisceglie.
+This plugin implements **Solo TTRPG Notation v2.0** by [Roberto Bisceglie](https://zotiquest.zeruhur.space/), published under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+
+## License
+
+[CC BY-SA 4.0](LICENSE) — free to use, share and adapt (including commercially), provided attribution is given and derivative works use the same license.
