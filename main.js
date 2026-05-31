@@ -77,6 +77,15 @@ const LEGEND_SECTIONS = [
             ['goal: Obiettivo',      'Obiettivo della sessione'],
         ]
     },
+    {
+        title: 'Fine scena',
+        rows: [
+            ['--- Fine Scena N ---', 'Separatore di fine scena'],
+            ['CF: X -> Y (Tipo)',    'Chaos Factor: valore precedente → nuovo'],
+            ['threads: [Thread:…]',  'Fili narrativi attivi a fine scena'],
+            ['npcs: [N:Nome]',       'NPC presenti/coinvolti nella scena'],
+        ]
+    },
 ];
 
 /* ── Legend modal ────────────────────────────────────────────────────────── */
@@ -346,6 +355,15 @@ class SoloTTRPGPlugin extends obsidian.Plugin {
         });
 
         this.addCommand({
+            id: 'insert-ttrpg-scene-end',
+            name: 'Inserisci fine scena TTRPG',
+            editorCallback: (editor) => {
+                const template = '```ttrpg\n--- Fine Scena ---\nCF: 5 -> 5\nthreads: [Thread:]\nnpcs: [N:]\n```';
+                editor.replaceSelection(template);
+            }
+        });
+
+        this.addCommand({
             id: 'open-ttrpg-legend',
             name: 'Apri legenda notazione TTRPG',
             callback: () => { new LegendModal(this.app).open(); }
@@ -369,8 +387,11 @@ class SoloTTRPGPlugin extends obsidian.Plugin {
     }
 
     renderNotation(source, el) {
-        const isSession = /^(session|date|pc|loc|goal|threads):/m.test(source);
-        const cls = isSession ? 'ttrpg-notation ttrpg-session-block' : 'ttrpg-notation';
+        const isSession  = /^(session|date|pc|loc|goal|threads):/m.test(source);
+        const isSceneEnd = /^---\s*Fine Scena/mi.test(source);
+        const cls = isSession  ? 'ttrpg-notation ttrpg-session-block'
+                  : isSceneEnd ? 'ttrpg-notation ttrpg-scene-end-block'
+                  : 'ttrpg-notation';
         const container = el.createDiv({ cls });
         const lines = source.split('\n');
         for (const line of lines) {
@@ -415,7 +436,15 @@ class SoloTTRPGPlugin extends obsidian.Plugin {
         } else if (line.startsWith('gen: ')) {
             el.addClass('ttrpg-gen');
             el.innerHTML = this.lineHTML('gen:', 'ttrpg-symbol-gen', line.slice(5));
-        } else if (/^(session|date|pc|loc|goal|threads):/.test(line)) {
+        } else if (/^---\s*Fine Scena/i.test(line)) {
+            el.addClass('ttrpg-scene-end');
+            const inner = line.replace(/^---\s*/i, '').replace(/\s*---$/, '').trim();
+            el.innerHTML = `<span class="ttrpg-symbol ttrpg-symbol-scene-end">⬛</span><span class="ttrpg-content">${this.format(inner)}</span>`;
+        } else if (/^CF:/.test(line)) {
+            el.addClass('ttrpg-scene-cf');
+            const value = line.slice(3).trim();
+            el.innerHTML = this.lineHTML('CF:', 'ttrpg-symbol-cf', value);
+        } else if (/^(session|date|pc|loc|goal|threads|npcs):/.test(line)) {
             el.addClass('ttrpg-session-info');
             const colon = line.indexOf(':');
             const key   = line.slice(0, colon).trim();

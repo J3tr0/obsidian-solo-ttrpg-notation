@@ -296,6 +296,39 @@
     padding: 8px 4px;
 }
 
+/* ── Fine scena block ── */
+.ttrpg-scene-end-block {
+    border: 1px solid var(--background-modifier-border);
+    border-left: 3px solid #5d4037;
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: var(--background-secondary);
+}
+
+.theme-dark .ttrpg-scene-end-block {
+    border-left-color: #bcaaa4;
+}
+
+.ttrpg-scene-end {
+    font-weight: 700;
+    color: var(--text-normal);
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: 4px;
+    padding-bottom: 2px;
+}
+
+.ttrpg-symbol-scene-end {
+    color: #5d4037;
+    font-size: 0.7em;
+    min-width: 2.2em;
+}
+
+.theme-dark .ttrpg-symbol-scene-end { color: #bcaaa4; }
+
+.ttrpg-scene-cf { }
+.ttrpg-symbol-cf { color: #c62828; }
+.theme-dark .ttrpg-symbol-cf { color: #ef9a9a; }
+
 /* ── Legend modal ── */
 .ttrpg-legend-modal {
     font-family: var(--font-text);

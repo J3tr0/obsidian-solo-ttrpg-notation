@@ -10,6 +10,7 @@ An [Obsidian](https://obsidian.md) plugin that renders the **Solo TTRPG Notation
 - Progress bars for clocks and tracks: `[Clock:Siege 3/10]`, `[Track:HP 8/10]`
 - Timers: `[Timer:Next full moon]`
 - Session info block (session number, date, PC, location, threads, goal)
+- **Scene end block**: records Chaos Factor changes, active threads, and NPCs at the end of each scene
 - Auto-increment session number based on files in the folder
 - **Tracker sidebar panel**: scans the entire campaign folder and shows a live summary of all NPCs, locations, characters, threads, clocks, tracks, and timers
 - **Notation legend**: quick-reference modal for all symbols and syntax
@@ -31,11 +32,27 @@ d: Perception check => 14 — S
 ```
 ~~~
 
+### Scene end block
+
+Use `--- Fine Scena N ---` to close a scene, recording the Chaos Factor change, active threads, and NPCs involved:
+
+~~~markdown
+```ttrpg
+--- Fine Scena 1 ---
+CF: 5 -> 6 (Interrupt Scene, situation out of control)
+threads: [Thread:Find the other half of the ancient key] [Thread:Who searched my lab?]
+npcs: [N:The Stranger] [N:Mayor]
+```
+~~~
+
+The block renders with a distinct left-border style. The `CF:` line is highlighted in red, `threads:` and `npcs:` use the same key-value style as the session header.
+
 ### Commands (Ctrl+P)
 
 | Command | Description |
 |---|---|
 | Inserisci scena TTRPG | Insert a scene template |
+| Inserisci fine scena TTRPG | Insert a scene end block |
 | Inserisci intestazione sessione TTRPG | Insert a session header |
 | Apri pannello tracker TTRPG | Open the tracker sidebar |
 | Apri legenda notazione TTRPG | Open the notation legend |
