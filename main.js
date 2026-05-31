@@ -158,7 +158,7 @@ class TrackerView extends obsidian.ItemView {
 
         let data;
         try {
-            data = await this.collectData(folder);
+            data = await collectFolderData(this.app.vault, folder);
         } catch (_) {
             if (gen !== this._refreshGen) return;
             el.createEl('p', { text: 'Errore durante la lettura dei file.', cls: 'ttrpg-tracker-empty' });
@@ -241,73 +241,63 @@ class TrackerView extends obsidian.ItemView {
         }
     }
 
-    async collectData(folder) {
-        const files = folder.children
-            .filter(f => f instanceof obsidian.TFile && f.extension === 'md')
-            .sort((a, b) => a.stat.mtime - b.stat.mtime);
+}
 
-        const data = {
-            npcs:      new Map(), // name -> Set<attr>
-            locations: new Map(), // name -> Set<attr>
-            pcs:       new Set(),
-            events:    new Set(),
-            threads:   new Set(),
-            clocks:    new Map(), // name -> {cur, tot}  (last value wins)
-            tracks:    new Map(),
-            timers:    new Set(),
-        };
+/* ── Data collection (shared between TrackerView and commands) ───────────── */
 
-        for (const file of files) {
-            const content = await this.app.vault.read(file);
-            const blockRe = /```ttrpg\n([\s\S]*?)```/g;
-            let m;
-            while ((m = blockRe.exec(content)) !== null) {
-                this.parseBlock(m[1], data);
-            }
-        }
+function emptyData() {
+    return {
+        npcs:      new Map(), // name -> Set<attr>
+        locations: new Map(), // name -> Set<attr>
+        pcs:       new Set(),
+        events:    new Set(),
+        threads:   new Set(),
+        clocks:    new Map(), // name -> {cur, tot}  (last value wins)
+        tracks:    new Map(),
+        timers:    new Set(),
+    };
+}
 
-        return data;
+function extractTagMap(source, re, map) {
+    for (const m of source.matchAll(re)) {
+        const parts = m[1].split('|');
+        const name  = parts[0].trim();
+        if (!name) continue;
+        if (!map.has(name)) map.set(name, new Set());
+        parts.slice(1).forEach(a => { const t = a.trim(); if (t) map.get(name).add(t); });
     }
+}
 
-    parseBlock(source, data) {
-        this.extractTagMap(source, /\[N:([^\]]+)\]/gi,  data.npcs);
-        this.extractTagMap(source, /\[L:([^\]]+)\]/gi,  data.locations);
-
-        for (const m of source.matchAll(/\[PC:([^\]]+)\]/gi)) {
-            data.pcs.add(m[1].split('|')[0].trim());
-        }
-        for (const m of source.matchAll(/\[E:([^\]]+)\]/gi)) {
-            data.events.add(m[1].split('|')[0].trim());
-        }
-        for (const m of source.matchAll(/\[Thread:([^\]]+)\]/gi)) {
-            data.threads.add(m[1].trim());
-        }
-        for (const m of source.matchAll(/\[Timer:([^\]]+)\]/gi)) {
-            data.timers.add(m[1].trim());
-        }
-
-        this.extractBars(source, /\[Clock:([^\]]+)\]/gi, data.clocks);
-        this.extractBars(source, /\[Track:([^\]]+)\]/gi, data.tracks);
+function extractBars(source, re, map) {
+    for (const m of source.matchAll(re)) {
+        const bm = m[1].match(/^(.+?)\s+(\d+)\/(\d+)$/);
+        if (bm) map.set(bm[1].trim(), { cur: parseInt(bm[2]), tot: parseInt(bm[3]) });
     }
+}
 
-    // Populates Map<name, Set<attr>> from a tag regex
-    extractTagMap(source, re, map) {
-        for (const m of source.matchAll(re)) {
-            const parts = m[1].split('|');
-            const name  = parts[0].trim();
-            if (!name) continue;
-            if (!map.has(name)) map.set(name, new Set());
-            parts.slice(1).forEach(a => { const t = a.trim(); if (t) map.get(name).add(t); });
-        }
-    }
+function parseBlock(source, data) {
+    extractTagMap(source, /\[N:([^\]]+)\]/gi,  data.npcs);
+    extractTagMap(source, /\[L:([^\]]+)\]/gi,  data.locations);
+    for (const m of source.matchAll(/\[PC:([^\]]+)\]/gi))     data.pcs.add(m[1].split('|')[0].trim());
+    for (const m of source.matchAll(/\[E:([^\]]+)\]/gi))      data.events.add(m[1].split('|')[0].trim());
+    for (const m of source.matchAll(/\[Thread:([^\]]+)\]/gi)) data.threads.add(m[1].trim());
+    for (const m of source.matchAll(/\[Timer:([^\]]+)\]/gi))  data.timers.add(m[1].trim());
+    extractBars(source, /\[Clock:([^\]]+)\]/gi, data.clocks);
+    extractBars(source, /\[Track:([^\]]+)\]/gi, data.tracks);
+}
 
-    // Populates Map<name, {cur, tot}> from Clock/Track regex; last value wins
-    extractBars(source, re, map) {
-        for (const m of source.matchAll(re)) {
-            const bm = m[1].match(/^(.+?)\s+(\d+)\/(\d+)$/);
-            if (bm) map.set(bm[1].trim(), { cur: parseInt(bm[2]), tot: parseInt(bm[3]) });
-        }
+async function collectFolderData(vault, folder) {
+    const files = folder.children
+        .filter(f => f instanceof obsidian.TFile && f.extension === 'md')
+        .sort((a, b) => a.stat.mtime - b.stat.mtime);
+    const data = emptyData();
+    for (const file of files) {
+        const content = await vault.read(file);
+        const blockRe = /```ttrpg\n([\s\S]*?)```/g;
+        let m;
+        while ((m = blockRe.exec(content)) !== null) parseBlock(m[1], data);
     }
+    return data;
 }
 
 /* ── Main plugin ─────────────────────────────────────────────────────────── */
@@ -340,16 +330,28 @@ class SoloTTRPGPlugin extends obsidian.Plugin {
         this.addCommand({
             id: 'insert-ttrpg-session',
             name: 'Inserisci intestazione sessione TTRPG',
-            editorCallback: (editor, view) => {
+            editorCallback: async (editor, view) => {
                 const today = new Date().toLocaleDateString('it-IT');
                 let sessionNum = 1;
+                let threadsStr = '[Thread:Filo narrativo]';
+                let npcsStr    = '';
+
                 if (view.file && view.file.parent) {
-                    const mdFiles = view.file.parent.children.filter(
+                    const folder  = view.file.parent;
+                    const mdFiles = folder.children.filter(
                         f => f instanceof obsidian.TFile && f.extension === 'md'
                     );
                     sessionNum = mdFiles.length;
+
+                    const data = await collectFolderData(this.app.vault, folder);
+
+                    if (data.threads.size > 0)
+                        threadsStr = [...data.threads].map(t => `[Thread:${t}]`).join(' ');
+                    if (data.npcs.size > 0)
+                        npcsStr = '\nnpcs: ' + [...data.npcs.keys()].map(n => `[N:${n}]`).join(' ');
                 }
-                const template = `\`\`\`ttrpg\nsession: ${sessionNum}\ndate: ${today}\npc: [PC:Nome personaggio]\nloc: [L:Luogo iniziale]\nthreads: [Thread:Filo narrativo]\ngoal: Obiettivo della sessione\n\`\`\``;
+
+                const template = `\`\`\`ttrpg\nsession: ${sessionNum}\ndate: ${today}\npc: [PC:Nome personaggio]\nloc: [L:Luogo iniziale]\nthreads: ${threadsStr}${npcsStr}\ngoal: Obiettivo della sessione\n\`\`\``;
                 editor.replaceSelection(template);
             }
         });
